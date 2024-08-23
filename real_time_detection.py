@@ -1,11 +1,3 @@
-'''
-Likely need to install:
-pyaudio, numpy, torch, torchaudio, scipy?
-
-Make sure to first figure out the correct recording device index
-
-Update saved model path before run 
-'''
 import pyaudio
 import numpy as np
 import torch
@@ -16,6 +8,12 @@ import time
 import os
 import datetime
 import matplotlib.pyplot as plt
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import wave
 
 #GPIO Pin Numers (BCM not Board Pins nums) 
 relayChannel1 = 26 #Board pin 37, BCM pin 26
@@ -43,6 +41,43 @@ CHANNELS = 1
 RATE = 96000
 CHUNK = int(RATE * 0.025)  # 25ms chunk
 INPUT_DEVICE_INDEX = 0 #Need to figure out what the index is on rPi
+
+from_email = 'ashborerdetection@outlook.com'
+to_email = 'jru34@nau.edu'
+subject = 'Detected Events Report'
+
+
+# SMTP server configuration for Outlook
+smtp_server = 'smtp-mail.outlook.com'
+smtp_port = 587
+smtp_user = 'ashborerdetection@outlook.com'
+smtp_password = 'NAUAshborer!'
+
+def send_email(subject, body, to_email, from_email, attachments=[]):
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg['Subject'] = subject
+
+    # Attach the body text
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Attach files
+    for file_path in attachments:
+        attachment = MIMEBase('application', 'octet-stream')
+        with open(file_path, 'rb') as f:
+            attachment.set_payload(f.read())
+        encoders.encode_base64(attachment)
+        attachment.add_header('Content-Disposition', f'attachment; filename={file_path}')
+        msg.attach(attachment)
+
+    # Send the email
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        print('Email sent!')
+
 
 class CNNNetwork(nn.Module):
 
@@ -121,6 +156,14 @@ def classify_chunk(audio_chunk):
         output = model(spec)
         pred = (output >= 0.5) * 1
     return pred.item()
+def save_audio(frames, filename, channels=CHANNELS, rate=RATE, format=FORMAT):
+    wf = wave.open(filename, 'wb')
+    wf.setnchannels(channels)
+    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(format))
+    wf.setframerate(rate)
+    wf.writeframes(b''.join(frames))
+    wf.close()
+    print(f'Audio saved as {filename}')
 
 def record_and_classify(duration_seconds=30):
     relayCh1.off() #Denergize to turn on voltage to signal conditioner
@@ -172,27 +215,32 @@ def record_and_classify(duration_seconds=30):
         relayCh1.on() #Denergize to turn on voltage to signal conditioner
         redLED.off()
         print('Recording Complete')
-        audio_data = np.frombuffer(b''.join(frames), dtype=np.int16).astype(np.float32)
+        if len(times) > 0:
+            print(f'{len(times)} events detected.')
+            audio_filename = 'recorded_audio.wav'
+            save_audio(frames, audio_filename)
+            print('Audio saved')
+            audio_data = np.frombuffer(b''.join(frames), dtype=np.int16).astype(np.float32)
 
-        # Plot the full recording
-        plt.figure(figsize=(12, 6))
-        time_axis = np.arange(0, len(audio_data)) / RATE
-        plt.plot(time_axis, audio_data, label='Audio Signal')
-        for (start,end) in times:
-            plt.plot(time_axis[start:end],audio_data[start:end],color='r')
-        plt.xlabel('Time (s)')
-        plt.ylabel('Amplitude')
-        plt.title('Audio Signal with Detected Events')
-        plt.legend()
-        plt.grid(True)
+            # Plot the full recording
+            plt.figure(figsize=(12, 6))
+            time_axis = np.arange(0, len(audio_data)) / RATE
+            plt.plot(time_axis, audio_data, label='Audio Signal')
+            for (start,end) in times:
+                plt.plot(time_axis[start:end],audio_data[start:end],color='r')
+            plt.xlabel('Time (s)')
+            plt.ylabel('Amplitude')
+            plt.title('Audio Signal with Detected Events')
+            plt.legend()
+            plt.grid(True)
 
-        # Save the plot as a file
-        plt.savefig('test_plot.png')  # Save the figure
-        print(f'Plot saved')
-
-        # Optionally show the plot
-        plt.show()
-
+            # Save the plot as a file
+            plt.savefig('test_plot.png')  # Save the figure
+            print(f'Plot saved')
+            attachments = ['test_plot.png', audio_filename]
+            print('Sending Email')
+            body = f'{len(times)} events have been detected. See attached audio and plot.'
+            send_email(subject, body, to_email, from_email, attachments)
 
 def setdeviceparameters(fileNum=1):
     setupPath = "Pi-Codec/"
@@ -210,6 +258,8 @@ def setdeviceparameters(fileNum=1):
         setupFilename = setupFilename4
     cwdir=os.getcwd()
     os.system("sudo alsactl restore -f "+primaryPath+setupPath+setupFilename)
+
+
    
 
 if __name__ == "__main__":

@@ -3,5 +3,5 @@
 #in terminal to make this file executable. Otherwise you'll get
 #a permission denied error.
 
-source /home/dasl/repos/boring_recorder/.venv/bin/activate
-sudo python3 /home/dasl/repos/boring_recorder/codecrec.py 30 300
+source /home/dasl/repos/robot_rich/.mlvenv/bin/activate
+sudo python3 /home/dasl/repos/robot_rich/codecrec.py 10 30

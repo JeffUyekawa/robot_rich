@@ -51,7 +51,8 @@ subject = 'Detected Events Report'
 smtp_server = 'smtp-mail.outlook.com'
 smtp_port = 587
 smtp_user = 'ashborerdetection@outlook.com'
-smtp_password = 'NAUAshborer!'
+smtp_password = pass
+#Add security measures
 
 def send_email(subject, body, to_email, from_email, attachments=[]):
     msg = MIMEMultipart()

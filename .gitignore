@@ -28,3 +28,6 @@ Temporary Items
 # Virtual Environments
 .mlvenv
 mlvenv
+
+#File with email password info
+email_info.txt

@@ -42,17 +42,23 @@ RATE = 96000
 CHUNK = int(RATE * 0.025)  # 25ms chunk
 INPUT_DEVICE_INDEX = 0 #Need to figure out what the index is on rPi
 
-from_email = 'ashborerdetection@outlook.com'
-to_email = 'jru34@nau.edu'
+#Read in email info
+with open("/home/dasl/repos/robot_rich/email_info.txt") as file:
+    contents = file.read()
+
+contents = contents.split()
+
+from_email = contents[0]
+to_email = contents[1]
 subject = 'Detected Events Report'
 
 
 # SMTP server configuration for Outlook
 smtp_server = 'smtp-mail.outlook.com'
 smtp_port = 587
-smtp_user = 'ashborerdetection@outlook.com'
-smtp_password = pass
-#Add security measures
+smtp_user = contents[0]
+smtp_password = contents[2]
+
 
 def send_email(subject, body, to_email, from_email, attachments=[]):
     msg = MIMEMultipart()

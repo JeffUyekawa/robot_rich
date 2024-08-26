@@ -50,3 +50,21 @@ The Codec Zero board documentation can be foudn [here](https://cdn.shopify.com/s
 
 There is a conflict of RPI Pins 38 and 40 between these two boards. The scripts in this repo currently only use the pin 37 relay channel to turn on and off the peripheral signal conditioner. The using the other channels have not been tested and could cause problems. This is noted in the code. 
 
+### Notes on ML Detection and Email Functionality
+The device is set up to send an email using an email from a microsoft outlook account using a smpt server. 
+
+If running for the first time, make a text file called email_info.txt with "from email" "to email" "from email password" as its contents.
+
+
+### Remote Access
+1. Connect to the same wifi network as the device.
+2. (Optional) use a scanner to search IP addresses. (Suggested: Fing)
+3. ssh in with
+```
+ssh dasl@ipaddress
+```
+4. If vnc-viewer is desired, use
+```
+vncserver-virtual
+```
+5. A new address will be printed that can be used with RealVNCViewer

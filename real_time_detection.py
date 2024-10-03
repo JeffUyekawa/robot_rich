@@ -8,11 +8,8 @@ import time
 import os
 import datetime
 import matplotlib.pyplot as plt
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 import wave
 
 #GPIO Pin Numers (BCM not Board Pins nums) 
@@ -48,42 +45,32 @@ with open("/home/dasl/repos/robot_rich/email_info.txt") as file:
 
 contents = contents.split()
 
-from_email = contents[0]
-to_email = contents[1]
-subject = 'Detected Events Report'
+token = contents[0]
+channel_id = contents[1]
 
+def send_slack(token, message, channel_id, attachments=[]):
+    client = WebClient(token=token)
+    try:
+        response = client.chat_postMessage(
+            channel=channel_id,  
+            text= message 
+        )
+        print(f"Message sent: {response['ts']}")
+    except SlackApiError as e:
+        print(f"Error sending message: {e.response['error']}")
+    for attachment in attachments:
+        try:
+    # Open and upload the image file
+            with open(attachment, "rb") as file:
+                response = client.files_upload_v2(
+                    channel="C07Q7GY1X6F",  # Replace with the actual channel ID or name
+                    file=file,  # The opened image file
+                    title="Example File"  # Optional title for the image
+                )
+            print(f"Image uploaded: {response['file']['id']}")
 
-# SMTP server configuration for Outlook
-smtp_server = 'smtp-mail.outlook.com'
-smtp_port = 587
-smtp_user = contents[0]
-smtp_password = contents[2]
-
-
-def send_email(subject, body, to_email, from_email, attachments=[]):
-    msg = MIMEMultipart()
-    msg['From'] = from_email
-    msg['To'] = to_email
-    msg['Subject'] = subject
-
-    # Attach the body text
-    msg.attach(MIMEText(body, 'plain'))
-
-    # Attach files
-    for file_path in attachments:
-        attachment = MIMEBase('application', 'octet-stream')
-        with open(file_path, 'rb') as f:
-            attachment.set_payload(f.read())
-        encoders.encode_base64(attachment)
-        attachment.add_header('Content-Disposition', f'attachment; filename={file_path}')
-        msg.attach(attachment)
-
-    # Send the email
-    with smtplib.SMTP(smtp_server, smtp_port) as server:
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
-        print('Email sent!')
+        except SlackApiError as e:
+            print(f"Error uploading image: {e.response['error']}")
 
 
 class CNNNetwork(nn.Module):
@@ -246,8 +233,8 @@ def record_and_classify(duration_seconds=30):
             print(f'Plot saved')
             attachments = ['test_plot.png', audio_filename]
             print('Sending Email')
-            body = f'{len(times)} events have been detected. See attached audio and plot.'
-            send_email(subject, body, to_email, from_email, attachments)
+            message = f'{len(times)} events have been detected. See attached audio and plot.'
+            send_slack(token, message, channel_id,  attachments)
 
 def setdeviceparameters(fileNum=1):
     setupPath = "Pi-Codec/"
@@ -273,7 +260,7 @@ if __name__ == "__main__":
     # Load your trained model
     model = CNNNetwork()
     model_path = '/home/dasl/repos/robot_rich/Best_96k_Label_Smoothed.pt'
-    model.load_state_dict(torch.load(model_path, weights_only = True))  # Update this with the path to your model
+    model.load_state_dict(torch.load(model_path, weights_only = True)) 
     model.eval()
     recordingDuration = 10
     setdeviceparameters(4)
